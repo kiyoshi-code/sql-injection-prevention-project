@@ -1,0 +1,5 @@
+{"error":"SQLITE_ERROR: no such table: users","level":"error","message":"DB error"}
+{"error":"SQLITE_ERROR: no such table: users","level":"error","message":"DB error"}
+{"error":"SQLITE_ERROR: no such table: users","level":"error","message":"DB error"}
+{"error":"SQLITE_ERROR: no such table: users","level":"error","message":"DB error"}
+{"ip":"::1","level":"info","message":"Failed login","username":"bob"}

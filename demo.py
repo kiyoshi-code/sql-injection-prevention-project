@@ -1,20 +1,26 @@
 """
-SQL INJECTION PREVENTION PROJECT - COMPLETE WORKING VERSION
-All CRUD Operations: SELECT, INSERT, UPDATE, DELETE
+SQL INJECTION PREVENTION - EDUCATIONAL DEMONSTRATION
+Complete demonstration of vulnerable vs secure code with all CRUD operations
+Run this file to see side-by-side comparison in terminal
+NOW USING BCRYPT FOR PASSWORD HASHING
 """
 
 import sqlite3
-from typing import List, Tuple, Optional
+from typing import List, Tuple
 import re
 from datetime import datetime
+import bcrypt
 
-print("\n" + "="*90)
-print("SQL INJECTION PREVENTION - ALL CRUD OPERATIONS")
-print("="*90 + "\n")
+print("\n" + "="*100)
+print("SQL INJECTION PREVENTION - COMPLETE DEMONSTRATION")
+print("Using bcrypt for Password Hashing + Parameterized Queries for SQL Injection Prevention")
+print("="*100 + "\n")
 
+# ============================================================================
 # PART 1: DATABASE SETUP
+# ============================================================================
 print("PART 1: Setting up database...")
-print("-" * 90)
+print("-" * 100)
 
 class Database:
     def __init__(self, db_name=':memory:'):
@@ -24,11 +30,12 @@ class Database:
         self.create_tables()
     
     def create_tables(self):
+        # Users table
         self.cursor.execute('''
             CREATE TABLE users (
                 user_id INTEGER PRIMARY KEY,
                 username TEXT UNIQUE,
-                password TEXT,
+                password_hash TEXT,
                 email TEXT UNIQUE,
                 full_name TEXT,
                 role TEXT,
@@ -36,6 +43,7 @@ class Database:
             )
         ''')
         
+        # Products table
         self.cursor.execute('''
             CREATE TABLE products (
                 product_id INTEGER PRIMARY KEY,
@@ -48,6 +56,7 @@ class Database:
             )
         ''')
         
+        # Orders table
         self.cursor.execute('''
             CREATE TABLE orders (
                 order_id INTEGER PRIMARY KEY,
@@ -60,10 +69,11 @@ class Database:
             )
         ''')
         
+        # Insert sample data with bcrypt hashed passwords
         users = [
-            (1, 'john_doe', 'pass123', 'john@email.com', 'John Doe', 'user', '2024-01-01'),
-            (2, 'admin', 'admin@pass', 'admin@company.com', 'Admin User', 'admin', '2024-01-01'),
-            (3, 'jane_smith', 'jane@pass', 'jane@email.com', 'Jane Smith', 'user', '2024-01-05'),
+            (1, 'john_doe', bcrypt.hashpw('pass123'.encode('utf-8'), bcrypt.gensalt()).decode('utf-8'), 'john@email.com', 'John Doe', 'user', '2024-01-01'),
+            (2, 'admin', bcrypt.hashpw('admin@pass'.encode('utf-8'), bcrypt.gensalt()).decode('utf-8'), 'admin@company.com', 'Admin User', 'admin', '2024-01-01'),
+            (3, 'jane_smith', bcrypt.hashpw('jane@pass'.encode('utf-8'), bcrypt.gensalt()).decode('utf-8'), 'jane@email.com', 'Jane Smith', 'user', '2024-01-05'),
         ]
         self.cursor.executemany('INSERT INTO users VALUES (?,?,?,?,?,?,?)', users)
         
@@ -81,69 +91,43 @@ class Database:
         self.cursor.executemany('INSERT INTO orders VALUES (?,?,?,?,?,?)', orders)
         
         self.conn.commit()
-        print("✓ Database created\n")
+        print("✓ Database created with sample data")
+        print("✓ Passwords hashed using bcrypt with automatic salt generation\n")
 
+# ============================================================================
+# PART 2: PASSWORD SECURITY & VALIDATION FUNCTIONS
+# ============================================================================
+print("\nPART 2: PASSWORD HASHING & VALIDATION")
+print("-" * 100)
 
-# PART 2: VULNERABLE CRUD OPERATIONS
-print("PART 2: VULNERABLE IMPLEMENTATION")
-print("-" * 90)
-
-class VulnerableCRUD:
-    def __init__(self, db: Database):
-        self.conn = db.conn
-        self.cursor = db.cursor
+class PasswordSecurity:
+    """
+    bcrypt Password Hashing - Industry Standard
     
-    def select_user_vulnerable(self, username: str) -> Tuple[List, str]:
-        query = "SELECT user_id, username, email, full_name, role FROM users WHERE username='" + username + "'"
-        print(f"[VULNERABLE] Query: {query}")
-        try:
-            self.cursor.execute(query)
-            return self.cursor.fetchall(), "Success"
-        except sqlite3.Error as e:
-            return [], f"Error: {str(e)}"
+    Why bcrypt is better than SHA256:
+    1. Built-in salt (random data added to password before hashing)
+    2. Slow by design (makes brute-force attacks impractical)
+    3. Adjustable work factor (can increase difficulty over time)
+    4. Same password produces different hash each time (due to random salt)
+    """
     
-    def insert_user_vulnerable(self, username: str, email: str, full_name: str, password: str) -> Tuple[bool, str]:
-        query = "INSERT INTO users (username, email, full_name, password, role, created_at) VALUES ('" + username + "', '" + email + "', '" + full_name + "', '" + password + "', 'user', '" + datetime.now().isoformat() + "')"
-        print(f"[VULNERABLE] Query: {query}")
-        try:
-            self.cursor.execute(query)
-            self.conn.commit()
-            return True, "User inserted"
-        except sqlite3.Error as e:
-            return False, f"Error: {str(e)}"
+    @staticmethod
+    def hash_password(password: str) -> str:
+        """Hash password using bcrypt with automatic salt generation"""
+        salt = bcrypt.gensalt(rounds=12)  # 12 rounds = 2^12 iterations
+        hashed = bcrypt.hashpw(password.encode('utf-8'), salt)
+        return hashed.decode('utf-8')
     
-    def update_user_vulnerable(self, user_id: str, email: str) -> Tuple[bool, str]:
-        query = "UPDATE users SET email='" + email + "' WHERE user_id=" + user_id
-        print(f"[VULNERABLE] Query: {query}")
-        try:
-            self.cursor.execute(query)
-            self.conn.commit()
-            affected = self.cursor.rowcount
-            return True, f"Updated {affected} user(s)"
-        except sqlite3.Error as e:
-            return False, f"Error: {str(e)}"
-    
-    def delete_user_vulnerable(self, user_id: str) -> Tuple[bool, str]:
-        query = "DELETE FROM users WHERE user_id=" + user_id
-        print(f"[VULNERABLE] Query: {query}")
-        try:
-            self.cursor.execute(query)
-            self.conn.commit()
-            affected = self.cursor.rowcount
-            return True, f"Deleted {affected} user(s)"
-        except sqlite3.Error as e:
-            return False, f"Error: {str(e)}"
+    @staticmethod
+    def verify_password(password: str, password_hash: str) -> bool:
+        """Verify password against bcrypt hash"""
+        return bcrypt.checkpw(password.encode('utf-8'), password_hash.encode('utf-8'))
 
+print("✓ Using bcrypt for password hashing (12 rounds)")
+print("✓ Automatic salt generation for each password")
+print("✓ Same password = different hash each time\n")
 
-# PART 3: SECURE CRUD OPERATIONS
-print("\nPART 3: SECURE IMPLEMENTATION")
-print("-" * 90)
-
-class SecureCRUD:
-    def __init__(self, db: Database):
-        self.conn = db.conn
-        self.cursor = db.cursor
-    
+class Validation:
     @staticmethod
     def validate_username(username: str) -> Tuple[bool, str]:
         if not username or len(username) < 3 or len(username) > 20:
@@ -168,268 +152,361 @@ class SecureCRUD:
                 return False, 0, "ID must be positive"
             return True, id_int, "Valid"
         except ValueError:
-            return False, 0, "ID must be a number"
+            return False, 0, f"ID must be a number (you entered: {value})"
+
+# ============================================================================
+# PART 3: VULNERABLE CODE (What NOT to do)
+# ============================================================================
+print("\nPART 3: VULNERABLE CODE IMPLEMENTATION")
+print("-" * 100)
+
+class VulnerableCRUD:
+    """
+    ⚠️ VULNERABLE CODE - Uses String Concatenation
+    This is what you should NEVER do in production!
+    """
     
-    def select_user_secure(self, username: str) -> Tuple[List, str]:
-        is_valid, message = self.validate_username(username)
-        if not is_valid:
-            return [], f"Invalid input: {message}"
+    def __init__(self, db: Database):
+        self.conn = db.conn
+        self.cursor = db.cursor
+    
+    def select_user_vulnerable(self, username: str) -> Tuple[List, str]:
+        """VULNERABLE: String concatenation allows comment injection"""
+        # THE PROBLEM: User input directly concatenated into SQL
+        query = f"SELECT user_id, username, email, role FROM users WHERE username='{username}'"
         
-        query = "SELECT user_id, username, email, full_name, role FROM users WHERE username=?"
+        print(f"[VULNERABLE] Query: {query}")
+        try:
+            self.cursor.execute(query)
+            results = self.cursor.fetchall()
+            return results, "Success"
+        except sqlite3.Error as e:
+            return [], f"Error: {str(e)}"
+    
+    def insert_user_vulnerable(self, username: str, email: str, password: str) -> Tuple[bool, str]:
+        """VULNERABLE: Allows stacked queries and DROP TABLE attacks"""
+        # Even though we hash the password with bcrypt, the query is still vulnerable
+        password_hash = PasswordSecurity.hash_password(password)
+        query = f"INSERT INTO users (username, email, full_name, password_hash, role, created_at) VALUES ('{username}', '{email}', 'User', '{password_hash}', 'user', '{datetime.now().isoformat()}')"
+        
+        print(f"[VULNERABLE] Query: {query[:100]}...")
+        try:
+            self.cursor.execute(query)
+            self.conn.commit()
+            return True, "User inserted"
+        except sqlite3.Error as e:
+            return False, f"Error: {str(e)}"
+    
+    def update_email_vulnerable(self, user_id: str, new_email: str) -> Tuple[bool, str]:
+        """VULNERABLE: Allows privilege escalation and OR injection"""
+        query = f"UPDATE users SET email='{new_email}' WHERE user_id={user_id}"
+        
+        print(f"[VULNERABLE] Query: {query}")
+        try:
+            self.cursor.execute(query)
+            self.conn.commit()
+            return True, f"Updated {self.cursor.rowcount} user(s)"
+        except sqlite3.Error as e:
+            return False, f"Error: {str(e)}"
+    
+    def delete_user_vulnerable(self, user_id: str) -> Tuple[bool, str]:
+        """VULNERABLE: OR injection can delete all records"""
+        query = f"DELETE FROM users WHERE user_id={user_id}"
+        
+        print(f"[VULNERABLE] Query: {query}")
+        try:
+            self.cursor.execute(query)
+            self.conn.commit()
+            return True, f"Deleted {self.cursor.rowcount} user(s)"
+        except sqlite3.Error as e:
+            return False, f"Error: {str(e)}"
+
+# ============================================================================
+# PART 4: SECURE CODE (Best Practices)
+# ============================================================================
+print("\nPART 4: SECURE CODE IMPLEMENTATION")
+print("-" * 100)
+
+class SecureCRUD:
+    """
+    ✅ SECURE CODE - Uses Parameterized Queries + Validation + bcrypt
+    This is the correct way to write database code!
+    """
+    
+    def __init__(self, db: Database):
+        self.conn = db.conn
+        self.cursor = db.cursor
+    
+    def select_user_secure(self, username: str, password: str = None) -> Tuple[List, str]:
+        """SECURE: Parameterized query + validation + bcrypt password verification"""
+        # Step 1: Validate input
+        is_valid, msg = Validation.validate_username(username)
+        if not is_valid:
+            return [], f"Invalid input: {msg}"
+        
+        # Step 2: Use parameterized query (? placeholder)
+        query = "SELECT user_id, username, email, role, password_hash FROM users WHERE username=?"
+        
         print(f"[SECURE] Query: {query}")
         print(f"[SECURE] Parameters: ('{username}')")
         try:
-            self.cursor.execute(query, (username,))
-            return self.cursor.fetchall(), "Success"
-        except sqlite3.Error as e:
+            self.cursor.execute(query, (username,))  # Data passed separately!
+            results = self.cursor.fetchall()
+            
+            # Step 3: Verify password using bcrypt if provided
+            if password and results:
+                user_data = results[0]
+                password_hash = user_data[4]
+                if PasswordSecurity.verify_password(password, password_hash):
+                    return [user_data[:4]], "Login successful - password verified with bcrypt"
+                else:
+                    return [], "Invalid credentials - bcrypt verification failed"
+            
+            return [r[:4] for r in results], "Success"
+        except sqlite3.Error:
             return [], "Database error"
     
-    def insert_user_secure(self, username: str, email: str, full_name: str, password: str) -> Tuple[bool, str]:
-        is_valid, msg = self.validate_username(username)
+    def insert_user_secure(self, username: str, email: str, password: str) -> Tuple[bool, str]:
+        """SECURE: Validation + parameterized query + bcrypt hashing"""
+        # Validate all inputs
+        is_valid, msg = Validation.validate_username(username)
         if not is_valid:
             return False, f"Invalid username: {msg}"
         
-        is_valid, msg = self.validate_email(email)
+        is_valid, msg = Validation.validate_email(email)
         if not is_valid:
             return False, f"Invalid email: {msg}"
         
-        if not full_name or len(full_name) > 100:
-            return False, "Invalid full_name"
-        
         if not password or len(password) < 5:
-            return False, "Password too short"
+            return False, "Password must be at least 5 characters"
         
-        query = "INSERT INTO users (username, email, full_name, password, role, created_at) VALUES (?, ?, ?, ?, ?, ?)"
+        # Hash password using bcrypt
+        password_hash = PasswordSecurity.hash_password(password)
+        
+        # Parameterized INSERT
+        query = "INSERT INTO users (username, email, full_name, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?, ?)"
+        
         print(f"[SECURE] Query: {query}")
-        print(f"[SECURE] Parameters: ('{username}', '{email}', '{full_name}', '***', 'user', timestamp)")
+        print(f"[SECURE] Parameters: ('{username}', '{email}', 'User', '***bcrypt_hash***', 'user', timestamp)")
         try:
-            self.cursor.execute(query, (username, email, full_name, password, 'user', datetime.now().isoformat()))
+            self.cursor.execute(query, (username, email, 'User', password_hash, 'user', datetime.now().isoformat()))
             self.conn.commit()
-            return True, "User inserted"
+            return True, "User inserted with bcrypt hashed password"
         except sqlite3.IntegrityError:
             return False, "Username or email already exists"
         except sqlite3.Error:
             return False, "Database error"
     
-    def update_user_secure(self, user_id: str, email: str) -> Tuple[bool, str]:
-        is_valid, id_int, msg = self.validate_numeric_id(user_id)
+    def update_email_secure(self, user_id: str, new_email: str) -> Tuple[bool, str]:
+        """SECURE: Type validation + parameterized query"""
+        # Validate ID as numeric
+        is_valid, id_int, msg = Validation.validate_numeric_id(user_id)
         if not is_valid:
             return False, f"Invalid user_id: {msg}"
         
-        is_valid, msg = self.validate_email(email)
+        # Validate email
+        is_valid, msg = Validation.validate_email(new_email)
         if not is_valid:
             return False, f"Invalid email: {msg}"
         
+        # Parameterized UPDATE
         query = "UPDATE users SET email=? WHERE user_id=?"
+        
         print(f"[SECURE] Query: {query}")
-        print(f"[SECURE] Parameters: ('{email}', {id_int})")
+        print(f"[SECURE] Parameters: ('{new_email}', {id_int})")
         try:
-            self.cursor.execute(query, (email, id_int))
+            self.cursor.execute(query, (new_email, id_int))
             self.conn.commit()
-            affected = self.cursor.rowcount
-            return True, f"Updated {affected} user(s)"
+            return True, f"Updated {self.cursor.rowcount} user(s)"
         except sqlite3.IntegrityError:
             return False, "Email already in use"
         except sqlite3.Error:
             return False, "Database error"
     
     def delete_user_secure(self, user_id: str) -> Tuple[bool, str]:
-        is_valid, id_int, msg = self.validate_numeric_id(user_id)
+        """SECURE: Type validation prevents OR injection"""
+        # Validate ID
+        is_valid, id_int, msg = Validation.validate_numeric_id(user_id)
         if not is_valid:
             return False, f"Invalid user_id: {msg}"
         
+        # Parameterized DELETE
         query = "DELETE FROM users WHERE user_id=?"
+        
         print(f"[SECURE] Query: {query}")
         print(f"[SECURE] Parameters: ({id_int})")
         try:
             self.cursor.execute(query, (id_int,))
             self.conn.commit()
-            affected = self.cursor.rowcount
-            return True, f"Deleted {affected} user(s)"
+            return True, f"Deleted {self.cursor.rowcount} user(s)"
         except sqlite3.Error:
             return False, "Database error"
 
-
-# PART 4: DEMONSTRATIONS
-print("\nPART 4: ATTACK DEMONSTRATIONS")
-print("-" * 90)
+# ============================================================================
+# PART 5: ATTACK DEMONSTRATIONS
+# ============================================================================
+print("\n" + "="*100)
+print("PART 5: ATTACK DEMONSTRATIONS")
+print("="*100)
 
 db = Database()
-vuln_crud = VulnerableCRUD(db)
-secure_crud = SecureCRUD(db)
+vuln = VulnerableCRUD(db)
+secure = SecureCRUD(db)
 
-# ATTACK 1
-print("\n### ATTACK 1: SELECT with Comment Injection ###\n")
-attack_username = "admin' --"
-print(f"Attacker Input: username = '{attack_username}'")
-print(f"Goal: Bypass password check\n")
+# ATTACK 1: Comment Injection (Bypass Authentication)
+print("\n" + "─"*100)
+print("ATTACK 1: Comment Injection - Bypass Password Check")
+print("─"*100)
 
-print("VULNERABLE APP:")
-results, msg = vuln_crud.select_user_vulnerable(attack_username)
-print(f"Result: {msg}")
-if len(results) > 0:
-    print(f"STATUS: ⚠️  SECURITY BREACH - Retrieved: {results[0]}\n")
+attack_input = "admin' --"
+print(f"\n🔴 Attacker Input: username = \"{attack_input}\"")
+print(f"🎯 Goal: Login without knowing password\n")
+
+print("VULNERABLE CODE:")
+results, msg = vuln.select_user_vulnerable(attack_input)
+if results:
+    print(f"⚠️  SECURITY BREACH! Retrieved: {results[0]}")
+    print(f"    The '--' commented out the password check!")
+    print(f"    Note: Even though passwords are stored with bcrypt,")
+    print(f"    the SQL injection bypassed authentication entirely!\n")
 else:
-    print("STATUS: No match\n")
+    print(f"Result: {msg}\n")
 
-print("SECURE APP:")
-results, msg = secure_crud.select_user_secure(attack_username)
-print(f"Result: {msg}")
-print(f"STATUS: ✓ PROTECTED - Input validation rejected\n")
+print("SECURE CODE:")
+results, msg = secure.select_user_secure(attack_input, "any_password")
+print(f"✅ PROTECTED: {msg}")
+print(f"    Input validation rejected the single quote")
+print(f"    Even if it passed, bcrypt would verify the password\n")
 
-# ATTACK 2
-print("="*90)
-print("### ATTACK 2: INSERT with Stacked Query ###\n")
-attack_username = "hacker"
-attack_email = "hack@evil.com', 'Hacker', 'pass123', 'admin'); DROP TABLE users; --"
-print(f"Attacker Input:")
-print(f"  username = '{attack_username}'")
-print(f"  email = '{attack_email}'")
-print(f"Goal: Create account AND drop users table\n")
+# ATTACK 2: OR Injection (Data Extraction)
+print("─"*100)
+print("ATTACK 2: OR Injection - Unauthorized Data Access")
+print("─"*100)
 
-print("VULNERABLE APP:")
-success, msg = vuln_crud.insert_user_vulnerable(attack_username, attack_email, "Hacker", "pass123")
-print(f"Result: {msg}")
-print(f"STATUS: ⚠️  ATTEMPTED - Dangerous query\n")
+attack_input = "1 OR 1=1"
+print(f"\n🔴 Attacker Input: user_id = \"{attack_input}\"")
+print(f"🎯 Goal: Update ALL users instead of one\n")
 
-print("SECURE APP:")
-success, msg = secure_crud.insert_user_secure(attack_username, attack_email, "Hacker", "pass123")
-print(f"Result: {msg}")
-print(f"STATUS: ✓ PROTECTED - Email validation rejected\n")
-
-# ATTACK 3
-print("="*90)
-print("### ATTACK 3: UPDATE with OR Injection ###\n")
-attack_user_id = "1 OR 1=1"
-attack_email = "hack@evil.com"
-print(f"Attacker Input:")
-print(f"  user_id = '{attack_user_id}'")
-print(f"  email = '{attack_email}'")
-print(f"Goal: Update ALL users' emails\n")
-
-print("VULNERABLE APP:")
-success, msg = vuln_crud.update_user_vulnerable(attack_user_id, attack_email)
-print(f"Result: {msg}")
+print("VULNERABLE CODE:")
+success, msg = vuln.update_email_vulnerable(attack_input, "hacked@evil.com")
 if "3" in msg:
-    print(f"STATUS: ⚠️  SECURITY BREACH - All users updated!\n")
+    print(f"⚠️  SECURITY BREACH! {msg}")
+    print(f"    All users' emails were changed!\n")
 else:
-    print(f"STATUS: Attack result\n")
+    print(f"Result: {msg}\n")
 
-print("SECURE APP:")
-success, msg = secure_crud.update_user_secure(attack_user_id, attack_email)
-print(f"Result: {msg}")
-print(f"STATUS: ✓ PROTECTED - Type validation rejected non-numeric\n")
+print("SECURE CODE:")
+success, msg = secure.update_email_secure(attack_input, "hacked@evil.com")
+print(f"✅ PROTECTED: {msg}")
+print(f"    Type validation rejected non-numeric input\n")
 
-# ATTACK 4
-print("="*90)
-print("### ATTACK 4: DELETE with OR Injection ###\n")
-attack_user_id = "1 OR 1=1"
-print(f"Attacker Input: user_id = '{attack_user_id}'")
-print(f"Goal: Delete ALL users from database\n")
+# ATTACK 3: Stacked Query (Data Destruction)
+print("─"*100)
+print("ATTACK 3: Stacked Query - DROP TABLE Attack")
+print("─"*100)
 
-print("VULNERABLE APP:")
-success, msg = vuln_crud.delete_user_vulnerable(attack_user_id)
-print(f"Result: {msg}")
+attack_email = "hack@evil.com'); DROP TABLE users; --"
+print(f"\n🔴 Attacker Input:")
+print(f"    username = \"hacker\"")
+print(f"    email = \"{attack_email}\"")
+print(f"🎯 Goal: Create account AND destroy users table\n")
+
+print("VULNERABLE CODE:")
+success, msg = vuln.insert_user_vulnerable("hacker", attack_email, "pass123")
+if not success:
+    print(f"⚠️  DANGEROUS! Query attempted: {msg}")
+    print(f"    Could have destroyed the database!")
+    print(f"    Note: bcrypt hashing doesn't prevent SQL injection!\n")
+else:
+    print(f"Result: {msg}\n")
+
+print("SECURE CODE:")
+success, msg = secure.insert_user_secure("hacker", attack_email, "pass123")
+print(f"✅ PROTECTED: {msg}")
+print(f"    Email validation rejected special characters")
+print(f"    Password would be hashed with bcrypt before storage\n")
+
+# ATTACK 4: Bulk Delete (Data Destruction)
+print("─"*100)
+print("ATTACK 4: Bulk Delete - Delete All Records")
+print("─"*100)
+
+attack_input = "1 OR 1=1"
+print(f"\n🔴 Attacker Input: user_id = \"{attack_input}\"")
+print(f"🎯 Goal: Delete ALL users from database\n")
+
+print("VULNERABLE CODE:")
+success, msg = vuln.delete_user_vulnerable(attack_input)
 if "3" in msg:
-    print(f"STATUS: ⚠️  CRITICAL BREACH - All users deleted!\n")
+    print(f"⚠️  CRITICAL BREACH! {msg}")
+    print(f"    Entire users table was wiped out!")
+    print(f"    All bcrypt hashed passwords are gone!\n")
 else:
-    print(f"STATUS: Attack result\n")
+    print(f"Result: {msg}\n")
 
-print("SECURE APP:")
-success, msg = secure_crud.delete_user_secure(attack_user_id)
-print(f"Result: {msg}")
-print(f"STATUS: ✓ PROTECTED - Type validation rejected OR condition\n")
+print("SECURE CODE:")
+success, msg = secure.delete_user_secure(attack_input)
+print(f"✅ PROTECTED: {msg}")
+print(f"    Type validation prevented OR condition\n")
 
 # ============================================================================
-# PART 5: SUMMARY
+# PART 6: bcrypt DEMONSTRATION
 # ============================================================================
-print("="*90)
-print("SUMMARY: KEY DEFENSE MECHANISMS")
-print("="*90 + "\n")
+print("="*100)
+print("BONUS: bcrypt PASSWORD HASHING DEMONSTRATION")
+print("="*100 + "\n")
 
-print("CRUD OPERATIONS COVERED:")
-print("-" * 90)
+print("Why bcrypt is better than SHA256 for passwords:")
+print("-" * 100)
 
-operations = {
-    "SELECT (READ)": "Query and retrieve data - Protected by parameterization",
-    "INSERT (CREATE)": "Add new records - Protected by validation + parameterization",
-    "UPDATE (MODIFY)": "Change existing data - Protected by type validation + parameterization",
-    "DELETE (REMOVE)": "Remove data - Protected by type validation + parameterization"
-}
+test_password = "MySecretPassword123"
+print(f"\nOriginal Password: {test_password}")
 
-for op, desc in operations.items():
-    print(f"\n{op}")
-    print(f"  Description: {desc}")
+# Hash the same password twice
+hash1 = PasswordSecurity.hash_password(test_password)
+hash2 = PasswordSecurity.hash_password(test_password)
 
-print("\n" + "="*90)
-print("ATTACK PATTERNS STOPPED:")
-print("="*90 + "\n")
+print(f"\nHash 1: {hash1}")
+print(f"Hash 2: {hash2}")
+print("\n✓ Notice: Same password = DIFFERENT hashes (due to random salt)")
+print("✓ This prevents rainbow table attacks")
 
-attacks = {
-    "Comment Injection ('  --)": "Treated as literal string, not SQL comment",
-    "OR Injection (' OR '1'='1)": "Parameter treated as single value, not condition",
-    "Stacked Queries ('; DROP TABLE)": "Parameter can't contain multiple statements",
-    "Escape Bypass (', role='admin)": "Parameter passed separately from query"
-}
+# Verify passwords
+print(f"\nVerify 'MySecretPassword123' against Hash 1: {PasswordSecurity.verify_password(test_password, hash1)}")
+print(f"Verify 'WrongPassword' against Hash 1: {PasswordSecurity.verify_password('WrongPassword', hash1)}")
 
-for attack, defense in attacks.items():
-    print(f"\n{attack}")
-    print(f"  How Stopped: {defense}")
+print("\n" + "="*100)
+print("SUMMARY: TWO-LAYER SECURITY APPROACH")
+print("="*100 + "\n")
 
-print("\n" + "="*90)
-print("DEFENSE TECHNIQUES USED:")
-print("="*90 + "\n")
+print("LAYER 1: PREVENT SQL INJECTION")
+print("-" * 100)
+print("✅ Parameterized Queries (? placeholders)")
+print("   • SQL code and data are separated")
+print("   • User input is never interpreted as SQL code")
+print("   • Stops: Comment injection, OR injection, UNION, stacked queries\n")
 
-techniques = [
-    "1. PARAMETERIZED QUERIES - Data separated from code",
-    "2. INPUT VALIDATION - Check type, length, format before use",
-    "3. TYPE CONVERSION - Convert to int/float, reject if fails",
-    "4. ERROR HANDLING - Generic messages, hide database details",
-    "5. AUTHORIZATION - Verify user permissions before operations"
-]
+print("✅ Input Validation")
+print("   • Type checking: int() rejects non-numeric input")
+print("   • Format checking: regex validates allowed characters")
+print("   • Length checking: prevents buffer overflow\n")
 
-for technique in techniques:
-    print(f"  ✓ {technique}")
+print("LAYER 2: PROTECT PASSWORDS (IF DATABASE IS BREACHED)")
+print("-" * 100)
+print("✅ bcrypt Password Hashing")
+print("   • Built-in salt (random data added to each password)")
+print("   • Slow by design (2^12 iterations = 4096 hashing rounds)")
+print("   • Same password = different hash each time")
+print("   • Protects against: Rainbow tables, brute force, dictionary attacks\n")
 
-print("\n" + "="*90)
-print("BEST PRACTICES FOR SECURE CRUD:")
-print("="*90 + "\n")
+print("="*100)
+print("KEY TAKEAWAY")
+print("="*100 + "\n")
+print("🔐 bcrypt does NOT prevent SQL injection")
+print("🔐 Parameterized queries prevent SQL injection")
+print("🔐 bcrypt protects passwords IF an attacker breaches your database")
+print("🔐 Use BOTH for defense-in-depth security\n")
 
-practices = [
-    "✓ Always use parameterized queries (? placeholders)",
-    "✓ Validate ALL input before database operations",
-    "✓ Use type conversion for numeric fields (int(), float())",
-    "✓ Validate text with regex for allowed characters",
-    "✓ Check length limits on all string inputs",
-    "✓ Show generic error messages to users",
-    "✓ Log detailed errors on server-side",
-    "✓ Use principle of least privilege on database accounts",
-    "✓ Test with injection payloads in each CRUD operation",
-    "✓ Never trust user input - always treat it as potential attack"
-]
-
-for practice in practices:
-    print(f"  {practice}")
-
-print("\n" + "="*90)
-print("PROJECT COMPLETE!")
-print("="*90 + "\n")
-
-print("WHAT YOU DEMONSTRATED:")
-print("-" * 90)
-demonstrations = [
-    "✓ How SQL injection works in SELECT queries",
-    "✓ How SQL injection works in INSERT queries",
-    "✓ How SQL injection works in UPDATE queries",
-    "✓ How SQL injection works in DELETE queries",
-    "✓ How parameterized queries prevent all attacks",
-    "✓ How input validation catches dangerous input",
-    "✓ Why type conversion provides extra protection"
-]
-
-for demo in demonstrations:
-    print(f"  {demo}")
-
-print("\n" + "="*90)
-print("Ready to present to your faculty!")
-print("="*90 + "\n")
+print("="*100)
+print("PROJECT COMPLETE - Ready for Faculty Presentation!")
+print("="*100 + "\n")

@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQL Injection Prevention - Security Testing Platform</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0f0f1e;
+            min-height: 100vh;
+            padding: 20px;
+            color: #e0e0e0;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+        
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            color: #ffffff;
+        }
+        
+        header p {
+            font-size: 1em;
+            opacity: 0.8;
+            font-weight: 300;
+            color: #a0a0c0;
+        }
+        
+        .section {
+            background: #1a1a2e;
+            border-radius: 8px;
+            padding: 28px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+            border: 1px solid #2a2a44;
+        }
+        
+        .section-title {
+            font-size: 1.4em;
+            color: #ffffff;
+            margin-bottom: 20px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+        }
+        
+        .input-section {
+            background: #252540;
+            padding: 24px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border-left: 4px solid #4a9eff;
+        }
+        
+        .input-section h3 {
+            font-size: 1.1em;
+            color: #ffffff;
+            margin-bottom: 18px;
+            font-weight: 600;
+        }
+        
+        .input-group {
+            margin-bottom: 18px;
+        }
+        
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #b0b0d0;
+            font-size: 0.95em;
+        }
+        
+        .input-group textarea {
+            width: 100%;
+            padding: 14px;
+            border: 2px solid #3a3a5a;
+            border-radius: 6px;
+            font-size: 0.95em;
+            font-family: 'Courier New', monospace;
+            resize: vertical;
+            min-height: 120px;
+            transition: all 0.3s;
+            background: #1a1a2e;
+            color: #e0e0e0;
+        }
+        
+        .input-group textarea:focus {
+            outline: none;
+            border-color: #4a9eff;
+            box-shadow: 0 0 0 3px rgba(74, 158, 255, 0.15);
+        }
+        
+        .input-group textarea::placeholder {
+            color: #5a5a7a;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+        }
+        
+        .btn {
+            padding: 12px 28px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s;
+            font-size: 0.95em;
+        }
+        
+        .btn-analyze {
+            background: #4a9eff;
+            color: white;
+            flex: 1;
+        }
+        
+        .btn-analyze:hover {
+            background: #3a8eef;
+            box-shadow: 0 4px 12px rgba(74, 158, 255, 0.3);
+            transform: translateY(-2px);
+        }
+        
+        .btn-reset {
+            background: #3a3a5a;
+            color: white;
+        }
+        
+        .btn-reset:hover {
+            background: #4a4a6a;
+        }
+        
+        .results-container {
+            margin-top: 30px;
+        }
+        
+        .results-title {
+            font-weight: 600;
+            margin-bottom: 18px;
+            color: #ffffff;
+            font-size: 1.05em;
+        }
+        
+        .results-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .result-box {
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            border: 1px solid #2a2a44;
+        }
+        
+        .result-header {
+            padding: 14px 18px;
+            font-weight: 600;
+            color: white;
+            font-size: 0.95em;
+        }
+        
+        .result-header.vulnerable {
+            background: #ef4444;
+        }
+        
+        .result-header.secure {
+            background: #10b981;
+        }
+        
+        .result-content {
+            background: #1a1a2e;
+            padding: 18px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+            color: #d0d0d0;
+            max-height: 450px;
+            overflow-y: auto;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        .result-content::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .result-content::-webkit-scrollbar-track {
+            background: #252540;
+        }
+        
+        .result-content::-webkit-scrollbar-thumb {
+            background: #3a3a5a;
+            border-radius: 4px;
+        }
+        
+        .result-content::-webkit-scrollbar-thumb:hover {
+            background: #4a4a6a;
+        }
+        
+        .result-query {
+            background: rgba(251, 191, 36, 0.1);
+            border-left: 3px solid #fbbf24;
+            padding: 10px;
+            margin: 8px 0;
+            border-radius: 3px;
+            font-size: 0.85em;
+            color: #fcd34d;
+        }
+        
+        .result-error {
+            background: rgba(239, 68, 68, 0.1);
+            border-left: 3px solid #ef4444;
+            color: #fca5a5;
+            padding: 10px;
+            margin: 8px 0;
+            border-radius: 3px;
+            font-size: 0.85em;
+        }
+        
+        .result-success {
+            background: rgba(16, 185, 129, 0.1);
+            border-left: 3px solid #10b981;
+            color: #6ee7b7;
+            padding: 10px;
+            margin: 8px 0;
+            border-radius: 3px;
+            font-size: 0.85em;
+        }
+        
+        .result-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 8px 0;
+            font-size: 0.8em;
+            background: #252540;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .result-table th,
+        .result-table td {
+            border: 1px solid #3a3a5a;
+            padding: 8px;
+            text-align: left;
+        }
+        
+        .result-table th {
+            background: #2a2a44;
+            font-weight: 600;
+            color: #ffffff;
+        }
+        
+        .result-table td {
+            color: #d0d0d0;
+        }
+        
+        .info-box {
+            background: rgba(74, 158, 255, 0.1);
+            border-left: 3px solid #4a9eff;
+            padding: 10px;
+            margin: 8px 0;
+            border-radius: 3px;
+            font-size: 0.85em;
+            color: #93c5fd;
+        }
+        
+        .placeholder {
+            color: #5a5a7a;
+            text-align: center;
+            padding: 30px;
+            font-style: italic;
+            font-size: 0.9em;
+        }
+        
+        .loading {
+            color: #4a9eff;
+            text-align: center;
+            padding: 20px;
+            font-size: 0.9em;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 30px;
+        }
+        
+        .stat-card {
+            background: #252540;
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #3a3a5a;
+            transition: transform 0.2s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-2px);
+            border-color: #4a9eff;
+        }
+        
+        .stat-card h3 {
+            font-size: 2em;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #4a9eff;
+        }
+        
+        .stat-card p {
+            opacity: 0.8;
+            font-size: 0.85em;
+            font-weight: 300;
+            color: #b0b0d0;
+        }
+        
+        .connection-status {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 6px;
+            font-size: 0.85em;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            z-index: 1000;
+            display: none;
+            border: 1px solid;
+        }
+        
+        .connection-status.error {
+            background: rgba(239, 68, 68, 0.2);
+            color: #fca5a5;
+            border-color: #ef4444;
+            display: block;
+        }
+        
+        .connection-status.success {
+            background: rgba(16, 185, 129, 0.2);
+            color: #6ee7b7;
+            border-color: #10b981;
+        }
+        
+        @media (max-width: 768px) {
+            .results-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats {
+                grid-template-columns: 1fr;
+            }
+            
+            header h1 {
+                font-size: 1.8em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>SQL Injection Prevention</h1>
+            <p>Security Testing Platform</p>
+        </header>
+        
+        <div class="section">
+            <h2 class="section-title">SQL Query Analysis</h2>
+            
+            <div class="input-section">
+                <h3>Enter SQL Query</h3>
+                <div class="input-group">
+                    <label>SQL Query:</label>
+                    <textarea id="sqlQuery" placeholder="Enter your SQL query here...
+
+Try these examples:
+  • SELECT * FROM users WHERE username='admin' --'
+  • SELECT * FROM products WHERE product_id=1 OR 1=1
+  • SELECT * FROM users WHERE user_id=1; DROP TABLE users; --"></textarea>
+                </div>
+                
+                <div class="button-group">
+                    <button class="btn btn-analyze" onclick="analyzeQuery()">Analyze</button>
+                    <button class="btn btn-reset" onclick="resetAnalysis()">Clear</button>
+                </div>
+            </div>
+            
+            <div class="results-container">
+                <div class="results-title">Analysis Results</div>
+                <div class="results-grid">
+                    <div class="result-box">
+                        <div class="result-header vulnerable">Vulnerable Implementation</div>
+                        <div class="result-content" id="vulnOutput">
+                            <div class="placeholder">Enter a SQL query and click Analyze to see results</div>
+                        </div>
+                    </div>
+                    
+                    <div class="result-box">
+                        <div class="result-header secure">Secure Implementation</div>
+                        <div class="result-content" id="secureOutput">
+                            <div class="placeholder">Enter a SQL query and click Analyze to see results</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="stats">
+                <div class="stat-card">
+                    <h3 id="totalAttempts">0</h3>
+                    <p>Total Tests Run</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="vulnBreaches">0</h3>
+                    <p>Vulnerabilities Detected</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="secureBlocks">0</h3>
+                    <p>Attacks Prevented</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="connectionStatus" class="connection-status"></div>
+    
+    <script>
+        let stats = {
+            totalAttempts: 0,
+            vulnBreaches: 0,
+            secureBlocks: 0
+        };
+        
+        const API_URL = 'http://localhost:5002';
+        
+        window.addEventListener('load', checkBackendConnection);
+        
+        async function checkBackendConnection() {
+            try {
+                const response = await fetch(`${API_URL}/api/reset-db`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (response.ok) {
+                    showConnectionStatus('Backend connected successfully', 'success');
+                    setTimeout(() => hideConnectionStatus(), 3000);
+                }
+            } catch (error) {
+                showConnectionStatus('Backend not running. Please start with: python app.py', 'error');
+            }
+        }
+        
+        function showConnectionStatus(message, type) {
+            const status = document.getElementById('connectionStatus');
+            status.textContent = message;
+            status.className = `connection-status ${type}`;
+            status.style.display = 'block';
+        }
+        
+        function hideConnectionStatus() {
+            const status = document.getElementById('connectionStatus');
+            status.style.display = 'none';
+        }
+        
+        function detectQueryType(query) {
+            const trimmed = query.trim().toUpperCase();
+            
+            if (trimmed.startsWith('SELECT')) return 'select';
+            if (trimmed.startsWith('INSERT')) return 'insert';
+            if (trimmed.startsWith('UPDATE')) return 'update';
+            if (trimmed.startsWith('DELETE')) return 'delete';
+            if (trimmed.startsWith('DROP')) return 'drop';
+            
+            return null;
+        }
+        
+        async function analyzeQuery() {
+            const query = document.getElementById('sqlQuery').value.trim();
+            
+            if (!query) {
+                alert('Please enter a SQL query');
+                return;
+            }
+            
+            const queryType = detectQueryType(query);
+            if (!queryType) {
+                alert('Unable to identify query type. Please enter a valid SQL query.');
+                return;
+            }
+            
+            document.getElementById('vulnOutput').innerHTML = '<div class="loading">Analyzing...</div>';
+            document.getElementById('secureOutput').innerHTML = '<div class="loading">Analyzing...</div>';
+            
+            stats.totalAttempts++;
+            updateStats();
+            
+            try {
+                const [vulnResponse, secureResponse] = await Promise.all([
+                    fetch(`${API_URL}/api/vulnerable/analyze`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ query, type: queryType })
+                    }),
+                    fetch(`${API_URL}/api/secure/analyze`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ query, type: queryType })
+                    })
+                ]);
+                
+                const vulnResult = await vulnResponse.json();
+                const secureResult = await secureResponse.json();
+                
+                if (vulnResult.status === 'success' && vulnResult.is_vulnerable) {
+                    stats.vulnBreaches++;
+                }
+                if (secureResult.status === 'error' || (secureResult.status === 'success' && secureResult.attack_blocked)) {
+                    stats.secureBlocks++;
+                }
+                updateStats();
+                
+                displayResult(vulnResult, 'vulnerable');
+                displayResult(secureResult, 'secure');
+            } catch (error) {
+                const errorMsg = `CONNECTION ERROR
+
+Cannot connect to backend server.
+
+Make sure the Flask backend is running:
+1. Open terminal in project folder
+2. Run: python app.py
+3. Check for: "Running on http://127.0.0.1:5000"
+
+Error: ${error.message}`;
+                
+                document.getElementById('vulnOutput').innerHTML = `<div class="result-error">${errorMsg}</div>`;
+                document.getElementById('secureOutput').innerHTML = `<div class="result-error">${errorMsg}</div>`;
+                
+                showConnectionStatus('Backend not running. Start with: python app.py', 'error');
+            }
+        }
+        
+        function displayResult(result, type) {
+            const outputId = type === 'vulnerable' ? 'vulnOutput' : 'secureOutput';
+            let html = '';
+            
+            if (result.status === 'error') {
+                html = `<div class="result-error">Error\n\n${result.message || result.error}</div>`;
+            } else {
+                if (result.query) {
+                    html += `<div class="result-query">Query:\n${result.query}</div>`;
+                }
+                
+                if (result.parameters) {
+                    html += `<div class="result-query">Parameters:\n[${result.parameters.join(', ')}]</div>`;
+                }
+                
+                if (result.protection) {
+                    html += `<div class="result-success">Protection:\n${result.protection}</div>`;
+                }
+                
+                if (result.message) {
+                    html += `<div class="result-success">${result.message}</div>`;
+                }
+                
+                if (result.results && result.results.length > 0) {
+                    html += '<table class="result-table"><tr>';
+                    Object.keys(result.results[0]).forEach(key => {
+                        html += `<th>${key}</th>`;
+                    });
+                    html += '</tr>';
+                    result.results.forEach(row => {
+                        html += '<tr>';
+                        Object.values(row).forEach(val => {
+                            html += `<td>${val}</td>`;
+                        });
+                        html += '</tr>';
+                    });
+                    html += '</table>';
+                }
+                
+                if (result.result) {
+                    html += '<table class="result-table"><tr>';
+                    Object.keys(result.result).forEach(key => {
+                        html += `<th>${key}</th>`;
+                    });
+                    html += '</tr><tr>';
+                    Object.values(result.result).forEach(val => {
+                        html += `<td>${val}</td>`;
+                    });
+                    html += '</tr></table>';
+                }
+                
+                if (result.attack_info) {
+                    html += `<div class="info-box">Information: ${result.attack_info}</div>`;
+                }
+            }
+            
+            document.getElementById(outputId).innerHTML = html;
+        }
+        
+        function updateStats() {
+            document.getElementById('totalAttempts').textContent = stats.totalAttempts;
+            document.getElementById('vulnBreaches').textContent = stats.vulnBreaches;
+            document.getElementById('secureBlocks').textContent = stats.secureBlocks;
+        }
+        
+        function resetAnalysis() {
+            document.getElementById('sqlQuery').value = '';
+            document.getElementById('vulnOutput').innerHTML = '<div class="placeholder">Enter a SQL query and click Analyze to see results</div>';
+            document.getElementById('secureOutput').innerHTML = '<div class="placeholder">Enter a SQL query and click Analyze to see results</div>';
+        }
+    </script>
+</body>
+</html>
